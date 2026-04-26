@@ -119,4 +119,4 @@ patches:
               - name: prometheus-server
                 resources:
                   limits:
-                    memory: 800Mi
+                    memory: 1Gi
