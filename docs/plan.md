@@ -231,13 +231,13 @@ update-and-sync Task の Step:
 
 ##### Phase 8b: Pipeline 実装(手動実行)
 
-- [ ] tekton/tasks/update-and-sync.yaml 作成
-- [ ] tekton/pipelines/progressive-release.yaml 作成
-- [ ] tekton/pipelineruns/progressive-release-run.yaml.tmpl 作成
-- [ ] oc apply で Task / Pipeline 投入
-- [ ] tkn pipeline start で end-to-end 実行
-- [ ] 正常系動作確認(Wave 並列性、Rollout 起動、全 Wave 成功)
-- [ ] 異常系動作確認(存在しないタグで Wave 1 失敗、Wave 2/3 未実行)
+- [x] tekton/tasks/update-and-sync.yaml 作成
+- [x] tekton/pipelines/progressive-release.yaml 作成
+- [x] tekton/pipelineruns/progressive-release-run.yaml.tmpl 作成
+- [x] oc apply で Task / Pipeline 投入
+- [x] tkn pipeline start で end-to-end 実行
+- [x] 正常系動作確認(Wave 並列性、Rollout 起動、全 Wave 成功)
+- [x] 異常系動作確認(存在しないタグで Wave 1 失敗、Wave 2/3 未実行)
 
 ##### Phase 8c: ドキュメント整備
 
