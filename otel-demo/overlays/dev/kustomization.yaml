@@ -26,3 +26,17 @@ patches:
       - op: replace
         path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
         value: otel-demo-dev
+
+images:
+  - name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
+    newName: ghcr.io/open-telemetry/demo
+    newTag: pre-release-product-catalog
+  - name: ghcr.io/open-telemetry/demo:2.2.0-currency
+    newName: ghcr.io/open-telemetry/demo
+    newTag: pre-release-currency
+  - name: ghcr.io/open-telemetry/demo:2.2.0-cart
+    newName: ghcr.io/open-telemetry/demo
+    newTag: pre-release-cart
+  - name: ghcr.io/open-telemetry/demo:2.2.0-frontend
+    newName: ghcr.io/open-telemetry/demo
+    newTag: pre-release-frontend
