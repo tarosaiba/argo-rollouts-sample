@@ -81,22 +81,34 @@ spec:
         OVERLAY="$(workspaces.shared-workspace.path)/repo/otel-demo/overlays/dev"
         cd "$OVERLAY"
 
-        # Extract current image name (without tag) for this app from base manifests
-        CURRENT=$(grep -r "image:.*demo:.*-${APP}" $(workspaces.shared-workspace.path)/repo/otel-demo/base/ -h \
+        # Extract base image reference for this app (used as kustomize edit key)
+        BASE_IMAGE=$(grep -r "image:.*demo:.*-${APP}" $(workspaces.shared-workspace.path)/repo/otel-demo/base/ -h \
           | head -1 | sed "s/.*image: *'\\{0,1\\}//; s/'\\{0,1\\} *$//" | xargs)
 
-        echo "Current: ${CURRENT}"
-        echo "New:     ${IMAGE}"
+        # Check effective image: overlay images section takes precedence over base
+        OVERLAY_TAG=$(grep -A2 "name: ${BASE_IMAGE}" kustomization.yaml 2>/dev/null \
+          | grep "newTag:" | sed 's/.*newTag: *//' | head -1)
+        if [ -n "$OVERLAY_TAG" ]; then
+          OVERLAY_NAME=$(grep -A1 "name: ${BASE_IMAGE}" kustomization.yaml 2>/dev/null \
+            | grep "newName:" | sed 's/.*newName: *//' | head -1)
+          EFFECTIVE="${OVERLAY_NAME:-ghcr.io/open-telemetry/demo}:${OVERLAY_TAG}"
+        else
+          EFFECTIVE="${BASE_IMAGE}"
+        fi
 
-        if [ "$CURRENT" = "$IMAGE" ]; then
+        echo "Base:      ${BASE_IMAGE}"
+        echo "Effective: ${EFFECTIVE}"
+        echo "New:       ${IMAGE}"
+
+        if [ "$EFFECTIVE" = "$IMAGE" ]; then
           echo "Image already at target tag. No-op."
           echo "NO_CHANGE" > $(workspaces.shared-workspace.path)/update-status
           exit 0
         fi
 
-        kustomize edit set image "${CURRENT}=${IMAGE}"
+        kustomize edit set image "${BASE_IMAGE}=${IMAGE}"
         echo "CHANGED" > $(workspaces.shared-workspace.path)/update-status
-        echo "${CURRENT}" > $(workspaces.shared-workspace.path)/current-image
+        echo "${BASE_IMAGE}" > $(workspaces.shared-workspace.path)/current-image
         echo "${IMAGE}" > $(workspaces.shared-workspace.path)/new-image
 
     # Step 3: download kustomize (needed for retry in git-push)
