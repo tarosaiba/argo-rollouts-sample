@@ -1,27 +1,37 @@
-.PHONY: render-chart apply-bootstrap apply-projects apply-appset sync-prod setup-scc
+.PHONY: render-chart setup-prereqs apply-bootstrap sync-prod status rollout-status routes
+
+# ============================================================
+# 1. 初期セットアップ (クラスタに1回だけ実行)
+# ============================================================
+
+# 前提条件: Namespace, SCC, RolloutManager を宣言的に適用
+# ※ Subscription の CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES は手動対応
+setup-prereqs:
+	oc apply -f bootstrap/namespaces.yaml
+	oc apply -f bootstrap/scc-anyuid.yaml
+	oc apply -f bootstrap/rollout-manager.yaml
+
+# App of Apps: ArgoCD が argocd/ 配下を自動管理
+apply-bootstrap: setup-prereqs
+	oc apply -f bootstrap/root-app.yaml
+
+# ============================================================
+# 2. 運用
+# ============================================================
 
 # Helm chart を再 render
 render-chart:
 	./scripts/render-chart.sh
-
-# AppProject を適用
-apply-projects:
-	oc apply -f argocd/projects/
-
-# ApplicationSet + prod Application を適用
-apply-appset:
-	oc apply -f argocd/applicationsets/otel-demo.yaml
-	oc apply -f argocd/applications/otel-demo-prod.yaml
-
-# Bootstrap: App of Apps を適用
-apply-bootstrap:
-	oc apply -f bootstrap/root-app.yaml
 
 # prod の Manual Sync をトリガー
 sync-prod:
 	oc patch application.argoproj.io otel-demo-prod -n openshift-gitops \
 		--type merge \
 		-p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
+
+# ============================================================
+# 3. 確認コマンド
+# ============================================================
 
 # 全環境の Pod 状態を確認
 status:
@@ -30,14 +40,6 @@ status:
 	@echo "=== PROD ===" && oc get pods -n otel-demo-prod --no-headers | grep -v Running | grep -v Completed || echo "  All Running"
 	@echo ""
 	@oc get application.argoproj.io -n openshift-gitops | grep otel
-
-# anyuid SCC をセットアップ
-setup-scc:
-	@for ns in otel-demo-dev otel-demo-stg otel-demo-prod; do \
-		for sa in otel-demo grafana jaeger prometheus; do \
-			oc adm policy add-scc-to-user anyuid -z $$sa -n $$ns; \
-		done; \
-	done
 
 # Rollout 状態を全環境で確認
 rollout-status:

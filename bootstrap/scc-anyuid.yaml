@@ -1,0 +1,70 @@
+# Grant anyuid SCC to ServiceAccounts used by OTel Demo.
+# Community images expect to run with fixed UIDs (envoy=101, kafka=1000, etc.)
+# and fail under OpenShift's restricted-v2 SCC with arbitrary UID assignment.
+#
+# One ClusterRoleBinding per namespace because subjects need explicit namespace refs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-demo-dev-anyuid
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: otel-demo
+    namespace: otel-demo-dev
+  - kind: ServiceAccount
+    name: grafana
+    namespace: otel-demo-dev
+  - kind: ServiceAccount
+    name: jaeger
+    namespace: otel-demo-dev
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: otel-demo-dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-demo-stg-anyuid
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: otel-demo
+    namespace: otel-demo-stg
+  - kind: ServiceAccount
+    name: grafana
+    namespace: otel-demo-stg
+  - kind: ServiceAccount
+    name: jaeger
+    namespace: otel-demo-stg
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: otel-demo-stg
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-demo-prod-anyuid
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: otel-demo
+    namespace: otel-demo-prod
+  - kind: ServiceAccount
+    name: grafana
+    namespace: otel-demo-prod
+  - kind: ServiceAccount
+    name: jaeger
+    namespace: otel-demo-prod
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: otel-demo-prod
