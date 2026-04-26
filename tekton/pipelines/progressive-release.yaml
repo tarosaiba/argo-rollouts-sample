@@ -1,0 +1,84 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: progressive-release
+  labels:
+    app.kubernetes.io/part-of: otel-demo-ci
+spec:
+  description: |
+    Wave-based progressive release for OTel Demo (dev environment).
+    Wave 1: product-catalog + currency (parallel)
+    Wave 2: cart (after Wave 1)
+    Wave 3: frontend (after Wave 2)
+  params:
+    - name: image-tag
+      type: string
+      description: New image tag to deploy (e.g. 2.3.0)
+  workspaces:
+    - name: shared-workspace
+    - name: git-credentials
+  tasks:
+    # Wave 1 — parallel
+    - name: release-product-catalog
+      taskRef:
+        name: update-and-sync
+      params:
+        - name: app-name
+          value: product-catalog
+        - name: image-tag
+          value: $(params.image-tag)
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+          subPath: product-catalog
+        - name: git-credentials
+          workspace: git-credentials
+    - name: release-currency
+      taskRef:
+        name: update-and-sync
+      params:
+        - name: app-name
+          value: currency
+        - name: image-tag
+          value: $(params.image-tag)
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+          subPath: currency
+        - name: git-credentials
+          workspace: git-credentials
+    # Wave 2 — after Wave 1
+    - name: release-cart
+      runAfter:
+        - release-product-catalog
+        - release-currency
+      taskRef:
+        name: update-and-sync
+      params:
+        - name: app-name
+          value: cart
+        - name: image-tag
+          value: $(params.image-tag)
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+          subPath: cart
+        - name: git-credentials
+          workspace: git-credentials
+    # Wave 3 — after Wave 2
+    - name: release-frontend
+      runAfter:
+        - release-cart
+      taskRef:
+        name: update-and-sync
+      params:
+        - name: app-name
+          value: frontend
+        - name: image-tag
+          value: $(params.image-tag)
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+          subPath: frontend
+        - name: git-credentials
+          workspace: git-credentials

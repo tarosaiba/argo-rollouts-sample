@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: progressive-release-
+  namespace: otel-demo-ci
+  labels:
+    app.kubernetes.io/part-of: otel-demo-ci
+    tekton.dev/pipeline: progressive-release
+spec:
+  pipelineRef:
+    name: progressive-release
+  params:
+    - name: image-tag
+      value: "${IMAGE_TAG}"
+  taskRunTemplate:
+    serviceAccountName: pipeline-sa
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 256Mi
+    - name: git-credentials
+      secret:
+        secretName: git-credentials

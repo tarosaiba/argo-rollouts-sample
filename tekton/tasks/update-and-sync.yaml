@@ -1,0 +1,128 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: update-and-sync
+  labels:
+    app.kubernetes.io/part-of: otel-demo-ci
+spec:
+  description: |
+    Update an OTel Demo component's image tag in the manifest repo,
+    commit & push, then trigger ArgoCD sync and wait for healthy.
+  params:
+    - name: app-name
+      type: string
+      description: Component name (e.g. frontend, cart, currency, product-catalog)
+    - name: image-tag
+      type: string
+      description: New image tag to deploy
+    - name: manifest-repo-url
+      type: string
+      default: https://github.com/tarosaiba/argo-rollouts-sample.git
+    - name: manifest-repo-branch
+      type: string
+      default: main
+  workspaces:
+    - name: shared-workspace
+    - name: git-credentials
+      description: Secret with Git credentials for push
+  stepTemplate:
+    env:
+      - name: HOME
+        value: /tekton/home
+  steps:
+    # Step 1: git clone
+    - name: git-clone
+      image: alpine/git:2.43.0
+      script: |
+        #!/bin/sh
+        set -eu
+        cd $(workspaces.shared-workspace.path)
+        # Configure git credentials from workspace
+        cp $(workspaces.git-credentials.path)/.gitconfig $HOME/.gitconfig 2>/dev/null || true
+        cp $(workspaces.git-credentials.path)/.git-credentials $HOME/.git-credentials 2>/dev/null || true
+        git config --global credential.helper store
+        # Extract username/password from workspace secret
+        if [ -f "$(workspaces.git-credentials.path)/username" ]; then
+          UNAME=$(cat $(workspaces.git-credentials.path)/username)
+          PASSWD=$(cat $(workspaces.git-credentials.path)/password)
+          REPO_URL=$(echo "$(params.manifest-repo-url)" | sed "s|https://|https://${UNAME}:${PASSWD}@|")
+        else
+          REPO_URL="$(params.manifest-repo-url)"
+        fi
+        git clone --depth 1 -b "$(params.manifest-repo-branch)" "$REPO_URL" repo
+        cd repo
+        git config user.email "tekton-pipeline@otel-demo-ci.local"
+        git config user.name "Tekton Pipeline"
+
+    # Step 2: kustomize edit set image
+    - name: update-image
+      image: registry.k8s.io/kustomize/kustomize:v5.4.3
+      script: |
+        #!/bin/sh
+        set -eu
+        APP="$(params.app-name)"
+        TAG="$(params.image-tag)"
+
+        # Map app-name to image repository
+        case "$APP" in
+          frontend)         IMAGE="ghcr.io/open-telemetry/demo:${TAG}-frontend" ;;
+          cart)             IMAGE="ghcr.io/open-telemetry/demo:${TAG}-cart" ;;
+          currency)         IMAGE="ghcr.io/open-telemetry/demo:${TAG}-currency" ;;
+          product-catalog)  IMAGE="ghcr.io/open-telemetry/demo:${TAG}-product-catalog" ;;
+          checkout)         IMAGE="ghcr.io/open-telemetry/demo:${TAG}-checkout" ;;
+          payment)          IMAGE="ghcr.io/open-telemetry/demo:${TAG}-payment" ;;
+          shipping)         IMAGE="ghcr.io/open-telemetry/demo:${TAG}-shipping" ;;
+          ad)               IMAGE="ghcr.io/open-telemetry/demo:${TAG}-ad" ;;
+          recommendation)   IMAGE="ghcr.io/open-telemetry/demo:${TAG}-recommendation" ;;
+          email)            IMAGE="ghcr.io/open-telemetry/demo:${TAG}-email" ;;
+          *)                echo "ERROR: unknown app '${APP}'"; exit 1 ;;
+        esac
+
+        OVERLAY="$(workspaces.shared-workspace.path)/repo/otel-demo/overlays/dev"
+        cd "$OVERLAY"
+
+        # Extract current image name (without tag) for this app from base manifests
+        CURRENT=$(grep -r "image:.*demo:.*-${APP}" $(workspaces.shared-workspace.path)/repo/otel-demo/base/ -h \
+          | head -1 | sed "s/.*image: *'\\{0,1\\}//; s/'\\{0,1\\} *$//" | xargs)
+
+        echo "Current: ${CURRENT}"
+        echo "New:     ${IMAGE}"
+
+        if [ "$CURRENT" = "$IMAGE" ]; then
+          echo "Image already at target tag. No-op."
+          echo "NO_CHANGE" > $(workspaces.shared-workspace.path)/update-status
+          exit 0
+        fi
+
+        kustomize edit set image "${CURRENT}=${IMAGE}"
+        echo "CHANGED" > $(workspaces.shared-workspace.path)/update-status
+
+    # Step 3: git commit & push
+    - name: git-push
+      image: alpine/git:2.43.0
+      script: |
+        #!/bin/sh
+        set -eu
+        STATUS=$(cat $(workspaces.shared-workspace.path)/update-status)
+        if [ "$STATUS" = "NO_CHANGE" ]; then
+          echo "No changes to commit. Skipping push."
+          exit 0
+        fi
+        cd $(workspaces.shared-workspace.path)/repo
+        git add -A
+        git commit -m "chore(release): bump $(params.app-name) to $(params.image-tag) [skip ci]"
+        git push origin "$(params.manifest-repo-branch)"
+
+    # Step 4: argocd sync & wait
+    - name: argocd-sync-wait
+      image: quay.io/argoproj/argocd:v2.12.13
+      envFrom:
+        - configMapRef:
+            name: argocd-env-configmap
+        - secretRef:
+            name: argocd-env-secret
+      script: |
+        #!/bin/sh
+        set -eu
+        argocd app sync otel-demo-dev --insecure --grpc-web --timeout 600
+        argocd app wait otel-demo-dev --health --insecure --grpc-web --timeout 600

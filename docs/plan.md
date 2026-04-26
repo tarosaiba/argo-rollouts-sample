@@ -219,15 +219,15 @@ update-and-sync Task の Step:
 
 ##### Phase 8a: Tekton 環境準備
 
-- [ ] OpenShift Pipelines Operator 導入確認 / 必要なら導入
-- [ ] tkn CLI バージョン確認
-- [ ] CI 用 Namespace 作成(otel-demo-ci)
-- [ ] Pipeline 用 ServiceAccount 作成(pipeline-sa)
-- [ ] ArgoCD API Token 発行 → Secret 作成(argocd-env-secret)
-- [ ] GitHub PAT を Secret 化(git-credentials)
-- [ ] ServiceAccount に Secret を紐付け
-- [ ] Tekton Hub から argocd-task-sync-and-wait をインストール
-- [ ] ClusterTask の存在確認(git-clone など)
+- [x] OpenShift Pipelines Operator 導入確認 / 必要なら導入
+- [x] tkn CLI バージョン確認
+- [x] CI 用 Namespace 作成(otel-demo-ci)
+- [x] Pipeline 用 ServiceAccount 作成(pipeline-sa)
+- [x] ArgoCD API Token 発行 → Secret 作成(argocd-env-secret)
+- [x] GitHub PAT を Secret 化(git-credentials)
+- [x] ServiceAccount に Secret を紐付け
+- [x] Tekton Hub から argocd-task-sync-and-wait をインストール
+- [x] ClusterTask の存在確認(git-clone など)
 
 ##### Phase 8b: Pipeline 実装(手動実行)
 
