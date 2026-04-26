@@ -39,4 +39,4 @@ images:
   newTag: 2.1.3-frontend
 - name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
   newName: ghcr.io/open-telemetry/demo
-  newTag: 2.1.3-product-catalog
+  newTag: 2.2.0-product-catalog
