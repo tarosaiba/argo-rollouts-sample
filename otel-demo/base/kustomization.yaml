@@ -66,7 +66,7 @@ resources:
   - manifests/service-shipping.yaml
   - manifests/service-valkey-cart.yaml
   # Workloads
-  - manifests/daemonset-otel-collector-agent.yaml
+  - manifests/deployment-otel-collector.yaml
   - manifests/deployment-accounting.yaml
   - manifests/deployment-ad.yaml
   - manifests/deployment-cart.yaml
