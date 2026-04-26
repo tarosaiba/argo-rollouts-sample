@@ -45,7 +45,7 @@ spec:
           image: 'ghcr.io/open-telemetry/demo:2.2.0-frontend'
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - containerPort: 9999
               name: service
           env:
             - name: OTEL_SERVICE_NAME
@@ -58,7 +58,7 @@ spec:
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: cumulative
             - name: FRONTEND_PORT
-              value: "8080"
+              value: "9999"
             - name: PORT
               value: $(FRONTEND_PORT)
             - name: FRONTEND_ADDR
