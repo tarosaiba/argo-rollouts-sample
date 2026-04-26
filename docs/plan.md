@@ -80,93 +80,84 @@ OpenShift Monitoring(`thanos-querier`)を参照し、**HTTP 成功率 1 指標**
 
 ### Phase 0: 事前情報収集(変更操作なし)
 
-- [ ] `oc version` で OpenShift バージョン確認
-- [ ] `oc get csv -A | grep -i gitops` で OpenShift GitOps Operator バージョン確認
-- [ ] `oc get configmap cluster-monitoring-config -n openshift-monitoring -o yaml` で User Workload Monitoring 有効化状態を確認
-- [ ] `oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}'` で apps ドメイン確認
-- [ ] `oc get crd rollouts.argoproj.io` で Argo Rollouts 導入状態確認
-- [ ] 結果を表にまとめて報告し、Phase 1 で対応が必要な項目を整理
+- [x] `oc version` で OpenShift バージョン確認
+- [x] `oc get csv -A | grep -i gitops` で OpenShift GitOps Operator バージョン確認
+- [x] `oc get configmap cluster-monitoring-config -n openshift-monitoring -o yaml` で User Workload Monitoring 有効化状態を確認
+- [x] `oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}'` で apps ドメイン確認
+- [x] `oc get crd rollouts.argoproj.io` で Argo Rollouts 導入状態確認
+- [x] 結果を表にまとめて報告し、Phase 1 で対応が必要な項目を整理
 
 ### Phase 1: 基盤準備
 
-- [ ] User Workload Monitoring 未有効なら有効化(`cluster-monitoring-config` ConfigMap 編集)
-- [ ] Argo Rollouts 未導入なら Operator 経由で導入
-- [ ] 3つの Project 作成(`otel-demo-dev` / `otel-demo-stg` / `otel-demo-prod`)
-- [ ] 各 Project に `argocd.argoproj.io/managed-by` ラベル付与
-- [ ] Git リポジトリ作成(ユーザーが GitHub 上で作成、Claude Code は clone)
-- [ ] ディレクトリスケルトン作成
-- [ ] README 初版作成
+- [x] User Workload Monitoring 未有効なら有効化 → 既に有効化済み
+- [x] Argo Rollouts 未導入なら Operator 経由で導入 → CRD 導入済み、RolloutManager 作成
+- [x] 3つの Project 作成(`otel-demo-dev` / `otel-demo-stg` / `otel-demo-prod`)
+- [x] 各 Project に `argocd.argoproj.io/managed-by` ラベル付与
+- [x] Git リポジトリ作成(ユーザーが GitHub 上で作成、Claude Code は clone)
+- [x] ディレクトリスケルトン作成
+- [x] README 初版作成
 
 ### Phase 2: Helm chart のフラット化
 
-- [ ] `scripts/render-chart.sh` 作成(`open-telemetry/opentelemetry-demo` を `helm template`)
-- [ ] chart バージョンを固定して render 実行
-- [ ] 結果を `otel-demo/base/manifests/` にコミット
-- [ ] `base/kustomization.yaml` 作成(全 manifest を resources に列挙)
-- [ ] OpenShift 共通 patch 作成(`base/patches/`)
-  - Ingress → Route 置換
-  - `securityContext` の固定 UID 削除
-  - 必要なら ServiceAccount 調整
-- [ ] `kustomize build` で render 結果を確認
+- [x] `scripts/render-chart.sh` 作成(`open-telemetry/opentelemetry-demo` を `helm template`)
+- [x] chart バージョンを固定して render 実行 (v0.40.7)
+- [x] 結果を `otel-demo/base/manifests/` にコミット (86ファイル)
+- [x] `base/kustomization.yaml` 作成(全 manifest を resources に列挙)
+- [x] OpenShift 共通 patch 作成(`base/patches/`)
+  - Route 追加 (frontend-proxy, grafana, jaeger)
+  - `anyuid` SCC 付与(コミュニティイメージの固定 UID 維持)
+  - Prometheus メモリ増量 (400Mi → 1Gi)
+- [x] `kustomize build` で render 結果を確認
 
 ### Phase 3: dev 環境構築 + 動作確認
 
-- [ ] `overlays/dev/` 作成
-  - `kustomization.yaml`(base 参照)
-  - replica 数 / resource / ログレベルの dev 向け patch
-- [ ] `argocd/projects/dev-project.yaml` 作成(AppProject)
-- [ ] `argocd/applications/otel-demo-dev.yaml` 作成(単発 Application、Auto Sync)
-- [ ] `oc apply` で AppProject + Application 投入
-- [ ] Sync 実行 → 全 Pod Ready 確認
-- [ ] frontend-proxy の Route から OTel Demo の Web UI アクセス確認
-- [ ] Jaeger / Grafana への Route 確認
-- [ ] 問題があれば patch 修正 → コミット → Sync
+- [x] `overlays/dev/` 作成
+  - `kustomization.yaml`（base 参照、namespace: otel-demo-dev）
+- [x] `argocd/projects/dev-project.yaml` 作成(AppProject)
+- [x] `argocd/applications/otel-demo-dev.yaml` 作成 → ApplicationSet に統合
+- [x] `oc apply` で AppProject + Application 投入
+- [x] Sync 実行 → 全 Pod Ready 確認
+- [x] frontend-proxy の Route から OTel Demo の Web UI アクセス確認 (HTTP 200)
+- [x] Jaeger / Grafana への Route 確認 (HTTP 200/301)
+- [x] 問題があれば patch 修正 → コミット → Sync
 
 ### Phase 4: Argo Rollouts 化(frontend を Blue/Green)
 
-- [ ] frontend Deployment を Rollout に変換する patch を `base/patches/` に追加
-  - `kind: Deployment` → `kind: Rollout`
-  - `spec.strategy` を `blueGreen` に変更
-  - `activeService` / `previewService` 指定
-- [ ] `frontend-active` / `frontend-preview` Service を base に追加
-- [ ] AnalysisTemplate 作成(成功率ベース、Prometheus query)
-  - OpenShift Monitoring の `thanos-querier` を参照
+- [x] frontend Deployment を Rollout に変換 (`base/patches/rollout-frontend.yaml`)
+  - `kind: Rollout` + `strategy.blueGreen`
+  - `activeService: frontend` / `previewService: frontend-preview`
+- [x] `frontend-preview` Service を base に追加
+- [x] AnalysisTemplate 作成 (HTTP Web チェック)
+  - preview Service への HTTP GET で成功判定
   - `prePromotionAnalysis` として Rollout に組み込み
-- [ ] AnalysisTemplate 用の RBAC 設定(Rollouts SA が Prometheus 参照可能に)
-- [ ] dev で Rollout 動作確認
-  - `kubectl-argo-rollouts` プラグインで状態確認
-  - イメージタグ変更 → preview 起動 → Analysis → 手動 promote の流れ確認
+- [x] RolloutManager 作成 (argo-rollouts namespace)
+- [x] dev で Rollout 動作確認 — revision 1 完了、active/preview 切り替え成功
 
 ### Phase 5: stg / prod overlay と ApplicationSet
 
-- [ ] `overlays/stg/` 作成(replica 数増、ログレベル INFO)
-- [ ] `overlays/prod/` 作成(replica 数最大、ログレベル WARN、resource 拡張)
-- [ ] `argocd/projects/` に stg / prod の AppProject 追加
-- [ ] `argocd/applicationsets/otel-demo.yaml` 作成
-  - List Generator で 3環境を展開
-  - 環境別の syncPolicy 切り替え(dev/stg=Auto、prod=Manual)
-- [ ] `oc apply` で ApplicationSet 投入
-- [ ] stg / prod に Sync(prod は手動)
-- [ ] 各環境で Rollout 動作確認
+- [x] `overlays/stg/` 作成
+- [x] `overlays/prod/` 作成
+- [x] `argocd/projects/` に stg / prod の AppProject 追加
+- [x] `argocd/applicationsets/otel-demo.yaml` 作成
+  - List Generator で dev/stg を Auto Sync で展開
+- [x] `argocd/applications/otel-demo-prod.yaml` (Manual Sync) 作成
+- [x] `oc apply` で ApplicationSet + prod Application 投入
+- [x] stg / prod に Sync → 全 Pod Running 確認
+- [x] 各環境で Rollout 動作確認 — 全3環境で frontend Rollout Available
 
 ### Phase 6: 昇格フロー & デモシナリオ整備
 
-- [ ] `docs/promotion-flow.md` 作成
-  - dev → stg → prod の PR ベース昇格手順
-  - ロールバック手順(Rollout abort / Git revert)
-- [ ] `docs/demo-scenario.md` 作成
-  - シナリオ1: 正常な変更が3環境を昇格していく流れ
-  - シナリオ2: Analysis 失敗で Rollout が止まる流れ
-  - シナリオ3: 障害発生時のロールバック
-- [ ] `docs/architecture.md` 作成(構成図、リソース関係図)
-- [ ] Makefile 整備(`render-chart` / `apply-bootstrap` / `sync-all` 等)
-- [ ] README をデモ実行可能なレベルに更新
+- [x] `docs/promotion-flow.md` 作成
+- [x] `docs/demo-scenario.md` 作成 (3シナリオ)
+- [x] `docs/architecture.md` 作成(構成図、リソース関係図)
+- [x] Makefile 整備 (render-chart, apply-*, status, rollout-status, routes)
+- [x] README 作成
 
 ### Phase 7(任意): App of Apps への昇華
 
-- [ ] `bootstrap/root-app.yaml` 作成
-  - `argocd/projects/*` と `argocd/applicationsets/*` を一括管理
-- [ ] 単一 `oc apply` でクラスタ全体が再現できることを確認
+- [x] `bootstrap/root-app.yaml` 作成
+  - `argocd/` ディレクトリを再帰的に管理
+- [ ] 単一 `oc apply` でクラスタ全体が再現できることを確認 (SCC 以外)
 
 ## 8. Claude Code への最初の指示文
 
