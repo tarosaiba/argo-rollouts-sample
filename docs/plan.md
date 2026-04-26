@@ -20,6 +20,8 @@ CD の実装にフォーカスし、Secret 管理や Policy(OPA / Kyverno など
 | 昇格戦略 | ディレクトリベース(`overlays/{env}` を PR で書き換え) |
 | 作業スタイル | Claude Code が `oc` で直接クラスタ操作 |
 | リポジトリ | ユーザー個人の単一リポジトリ |
+| CI(軽量 Tekton) | OpenShift Pipelines による image tag 更新 + ArgoCD Sync 自動化(アプリ src ビルドは行わない) |
+| リリース戦略 | 依存関係を踏まえた段階的リリース(Wave 方式) |
 | スコープ外 | Secret 管理、Policy、アプリコード(OTel Demo 公式を利用) |
 
 ## 3. 環境別 Sync / Rollout ポリシー
@@ -48,6 +50,13 @@ otel-gitops-demo/
 │       ├── dev/                      # dev 向け patch + values 相当の差分
 │       ├── stg/
 │       └── prod/
+├── tekton/
+│   ├── tasks/
+│   │   └── update-and-sync.yaml      # image tag 更新 + ArgoCD Sync Task
+│   ├── pipelines/
+│   │   └── progressive-release.yaml  # Wave 方式の段階的リリース Pipeline
+│   └── pipelineruns/
+│       └── progressive-release-run.yaml.tmpl
 ├── scripts/
 │   └── render-chart.sh               # Helm chart を再 render するスクリプト
 ├── Makefile
@@ -77,6 +86,11 @@ OpenShift Monitoring(`thanos-querier`)を参照し、**HTTP 成功率 1 指標**
 詳細クエリと閾値は Phase 4 で具体化する。
 
 ## 7. Phase 別タスクリスト
+
+> **実行順序**: Phase 0 → 1 → 2 → 3 → 4 → 5 → **8** → 6 → 7
+>
+> Phase 6(デモシナリオ整備)で Tekton Pipeline 経由のリリースもシナリオに
+> 含めるため、Phase 8 を Phase 6 の前に実施する。
 
 ### Phase 0: 事前情報収集(変更操作なし)
 
@@ -144,6 +158,106 @@ OpenShift Monitoring(`thanos-querier`)を参照し、**HTTP 成功率 1 指標**
 - [x] `oc apply` で ApplicationSet + prod Application 投入
 - [x] stg / prod に Sync → 全 Pod Running 確認
 - [x] 各環境で Rollout 動作確認 — 全3環境で frontend Rollout Available
+
+### Phase 8: Tekton Pipeline 構築(軽量 CI + 段階的リリース)
+
+#### 8.0 目的
+
+OpenShift Pipelines(Tekton)を用いて以下を自動化する:
+- 公式イメージタグの更新を Git にコミット
+- ArgoCD Application の Sync をトリガー
+- Rollout の Healthy 待機
+- 依存関係を踏まえた Wave 順序での段階的リリース
+
+アプリの src ビルドは行わず、公式イメージタグの差し替えで新バージョン
+リリースを擬似する。
+
+#### 8.1 リリース戦略(Wave 構成)
+
+OTel Demo の依存関係を踏まえ、下流(被依存側)→ 上流(利用側)の順に
+リリースする。
+
+| Wave | コンポーネント | 並列性 | 依存先 |
+|------|----------------|--------|--------|
+| Wave 1 | product-catalog, currency | 並列 | (なし、もしくは DB のみ) |
+| Wave 2 | cart | 単独 | Wave 1 |
+| Wave 3 | frontend | 単独 | Wave 1, 2 |
+
+各 Wave は前 Wave の Rollout が Healthy になってから次に進む。
+失敗した場合は Pipeline を停止し、人間の判断を待つ
+(Rollout は自動 abort)。
+
+#### 8.2 Pipeline 構成
+
+Pipeline 名: progressive-release
+
+入力 params:
+- image-tag (required): 新バージョンのタグ
+- target-env (default: dev)
+
+Tasks:
+- Wave 1: release-product-catalog, release-currency(並列、runAfter なし)
+- Wave 2: release-cart(runAfter: [Wave 1 の全 Task])
+- Wave 3: release-frontend(runAfter: [Wave 2])
+
+すべて update-and-sync Task を taskRef で呼び、対象アプリ名を param で渡す。
+
+update-and-sync Task の Step:
+1. clone manifest repo
+2. kustomize edit set image(対象アプリのみ更新)
+3. git commit & push
+4. argocd-task-sync-and-wait(Application が Healthy になるまで待機)
+
+#### 8.3 認証情報
+
+| 用途 | 方式 | 格納先 |
+|------|------|--------|
+| ArgoCD API 操作 | API Token | Secret(argocd-env-secret) |
+| Git push | GitHub PAT | Secret(git-credentials) |
+
+#### 8.4 タスクリスト
+
+##### Phase 8a: Tekton 環境準備
+
+- [ ] OpenShift Pipelines Operator 導入確認 / 必要なら導入
+- [ ] tkn CLI バージョン確認
+- [ ] CI 用 Namespace 作成(otel-demo-ci)
+- [ ] Pipeline 用 ServiceAccount 作成(pipeline-sa)
+- [ ] ArgoCD API Token 発行 → Secret 作成(argocd-env-secret)
+- [ ] GitHub PAT を Secret 化(git-credentials)
+- [ ] ServiceAccount に Secret を紐付け
+- [ ] Tekton Hub から argocd-task-sync-and-wait をインストール
+- [ ] ClusterTask の存在確認(git-clone など)
+
+##### Phase 8b: Pipeline 実装(手動実行)
+
+- [ ] tekton/tasks/update-and-sync.yaml 作成
+- [ ] tekton/pipelines/progressive-release.yaml 作成
+- [ ] tekton/pipelineruns/progressive-release-run.yaml.tmpl 作成
+- [ ] oc apply で Task / Pipeline 投入
+- [ ] tkn pipeline start で end-to-end 実行
+- [ ] 正常系動作確認(Wave 並列性、Rollout 起動、全 Wave 成功)
+- [ ] 異常系動作確認(存在しないタグで Wave 1 失敗、Wave 2/3 未実行)
+
+##### Phase 8c: ドキュメント整備
+
+- [ ] docs/pipeline.md 作成
+  - 概要、構成図(Mermaid)、前提条件、セットアップ手順、
+    実行手順、トラブルシューティング、制約
+
+#### 8.5 Phase 8 完了の Definition of Done
+
+- [ ] tkn pipeline start progressive-release -p image-tag=<新タグ> で全 Wave 成功
+- [ ] dev 環境の各 Rollout が新タグで Healthy
+- [ ] 失敗ケースで Pipeline が適切に停止
+- [ ] docs/pipeline.md で第三者がセットアップ → 実行できる
+
+#### 8.6 スコープ外(Phase 8 ではやらない)
+
+- アプリ src のビルド・push(イメージは公式を利用)
+- Webhook / EventListener による自動トリガー(手動実行のみ)
+- stg / prod の自動リリース(Pipeline は dev のみ対象)
+- 自動 Rollback(Rollout の自動 abort と Git revert の手動操作で対応)
 
 ### Phase 6: 昇格フロー & デモシナリオ整備
 
