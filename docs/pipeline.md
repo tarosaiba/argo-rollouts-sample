@@ -302,10 +302,12 @@ frontend は Blue/Green + Manual Promote のため、Analysis 完了後に手動
 
 ```bash
 # Rollout の状態確認
-oc argo rollouts status frontend -n otel-demo-dev
+oc get rollout.argoproj.io frontend -n otel-demo-dev
 
 # promote 実行
-oc argo rollouts promote frontend -n otel-demo-dev
+oc patch rollout.argoproj.io frontend -n otel-demo-dev \
+  --type merge --subresource status \
+  -p '{"status":{"promoteFull":true}}'
 ```
 
 Pipeline は `argocd app wait --health` で Rollout が Healthy になるまで待機する。Rollout が Paused のままだと Pipeline はタイムアウト (600 秒) する。

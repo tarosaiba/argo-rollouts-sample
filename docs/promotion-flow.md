@@ -27,10 +27,9 @@ Argo Rollouts が Blue/Green デプロイを開始し、prePromotionAnalysis が
 oc get rollout.argoproj.io frontend -n otel-demo-dev
 
 # Promote (手動)
-oc argo rollouts promote frontend -n otel-demo-dev
-# または
 oc patch rollout.argoproj.io frontend -n otel-demo-dev \
-  --type merge -p '{"status":{"promoteFull":true}}'
+  --type merge --subresource status \
+  -p '{"status":{"promoteFull":true}}'
 ```
 
 ### 3. stg への昇格
@@ -42,7 +41,9 @@ dev で確認できたら、同じ変更が base/ に含まれているため st
 oc get rollout.argoproj.io frontend -n otel-demo-stg
 
 # Promote
-oc argo rollouts promote frontend -n otel-demo-stg
+oc patch rollout.argoproj.io frontend -n otel-demo-stg \
+  --type merge --subresource status \
+  -p '{"status":{"promoteFull":true}}'
 ```
 
 ### 4. prod への昇格
@@ -59,7 +60,9 @@ oc patch application.argoproj.io otel-demo-prod -n openshift-gitops \
 oc get rollout.argoproj.io frontend -n otel-demo-prod
 
 # Promote
-oc argo rollouts promote frontend -n otel-demo-prod
+oc patch rollout.argoproj.io frontend -n otel-demo-prod \
+  --type merge --subresource status \
+  -p '{"status":{"promoteFull":true}}'
 ```
 
 ## ロールバック手順
@@ -69,7 +72,9 @@ oc argo rollouts promote frontend -n otel-demo-prod
 進行中の Rollout を中止し、active (旧バージョン) に戻す。
 
 ```bash
-oc argo rollouts abort frontend -n otel-demo-{env}
+oc patch rollout.argoproj.io frontend -n otel-demo-{env} \
+  --type merge --subresource status \
+  -p '{"status":{"abort":true}}'
 ```
 
 ### 方法 2: Git Revert
