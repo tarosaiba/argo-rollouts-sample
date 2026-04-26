@@ -5,6 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/name: frontend-proxy
     app.kubernetes.io/part-of: opentelemetry-demo
+  annotations:
+    haproxy.router.openshift.io/timeout: 120s
 spec:
   to:
     kind: Service
