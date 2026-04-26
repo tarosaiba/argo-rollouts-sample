@@ -31,6 +31,9 @@ images:
 - name: ghcr.io/open-telemetry/demo:2.2.0-currency
   newName: ghcr.io/open-telemetry/demo
   newTag: 2.2.0-currency
+- name: ghcr.io/open-telemetry/demo:2.2.0-frontend-proxy
+  newName: ghcr.io/open-telemetry/demo
+  newTag: 2.2.0-frontend
 - name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
   newName: ghcr.io/open-telemetry/demo
   newTag: 2.2.0-product-catalog
