@@ -10,18 +10,9 @@ spec:
           - env: dev
             namespace: otel-demo-dev
             project: otel-demo-dev
-            syncPolicy: automated
-            selfHeal: "true"
           - env: stg
             namespace: otel-demo-stg
             project: otel-demo-stg
-            syncPolicy: automated
-            selfHeal: "false"
-          - env: prod
-            namespace: otel-demo-prod
-            project: otel-demo-prod
-            syncPolicy: manual
-            selfHeal: "false"
   template:
     metadata:
       name: "otel-demo-{{env}}"
@@ -35,14 +26,9 @@ spec:
         server: https://kubernetes.default.svc
         namespace: "{{namespace}}"
       syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
         syncOptions:
           - CreateNamespace=false
           - PruneLast=true
-  templatePatch: |
-    {{- if eq .syncPolicy "automated" }}
-    spec:
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: {{ .selfHeal }}
-    {{- end }}

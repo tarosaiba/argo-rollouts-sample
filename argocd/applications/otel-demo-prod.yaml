@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-demo-prod
+  namespace: openshift-gitops
+spec:
+  project: otel-demo-prod
+  source:
+    repoURL: https://github.com/tarosaiba/argo-rollouts-sample.git
+    targetRevision: main
+    path: otel-demo/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: otel-demo-prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - PruneLast=true
+  # No automated sync — prod requires manual sync
