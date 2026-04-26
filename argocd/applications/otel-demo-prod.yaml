@@ -11,7 +11,7 @@ spec:
   project: otel-demo-prod
   source:
     repoURL: https://github.com/tarosaiba/argo-rollouts-sample.git
-    targetRevision: main
+    targetRevision: v1.0.0
     path: otel-demo/overlays/prod
   destination:
     server: https://kubernetes.default.svc
