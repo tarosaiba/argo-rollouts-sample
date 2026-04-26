@@ -1,0 +1,122 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # ServiceAccounts
+  - manifests/serviceaccount-grafana.yaml
+  - manifests/serviceaccount-jaeger.yaml
+  - manifests/serviceaccount-otel-collector.yaml
+  - manifests/serviceaccount-otel-demo.yaml
+  - manifests/serviceaccount-prometheus.yaml
+  # Secrets
+  - manifests/secret-grafana.yaml
+  # ConfigMaps
+  - manifests/configmap-flagd-config.yaml
+  - manifests/configmap-grafana-alerting.yaml
+  - manifests/configmap-grafana-config-dashboards.yaml
+  - manifests/configmap-grafana-dashboard-apm-dashboard.yaml
+  - manifests/configmap-grafana-dashboard-demo-dashboard.yaml
+  - manifests/configmap-grafana-dashboard-exemplars-dashboard.yaml
+  - manifests/configmap-grafana-dashboard-linux-dashboard.yaml
+  - manifests/configmap-grafana-dashboard-nginx-metrics.yaml
+  - manifests/configmap-grafana-dashboard-opentelemetry-collector.yaml
+  - manifests/configmap-grafana-dashboard-postgresql-dashboard.yaml
+  - manifests/configmap-grafana-dashboard-spanmetrics-dashboard.yaml
+  - manifests/configmap-grafana-datasources.yaml
+  - manifests/configmap-grafana.yaml
+  - manifests/configmap-opensearch-config.yaml
+  - manifests/configmap-otel-collector-agent.yaml
+  - manifests/configmap-postgresql-init.yaml
+  - manifests/configmap-prometheus.yaml
+  - manifests/configmap-user-config.yaml
+  # RBAC
+  - manifests/clusterrole-grafana-clusterrole.yaml
+  - manifests/clusterrole-otel-collector.yaml
+  - manifests/clusterrole-prometheus.yaml
+  - manifests/clusterrolebinding-grafana-clusterrolebinding.yaml
+  - manifests/clusterrolebinding-otel-collector.yaml
+  - manifests/clusterrolebinding-prometheus.yaml
+  - manifests/role-grafana.yaml
+  - manifests/rolebinding-grafana.yaml
+  # Services
+  - manifests/service-ad.yaml
+  - manifests/service-cart.yaml
+  - manifests/service-checkout.yaml
+  - manifests/service-currency.yaml
+  - manifests/service-email.yaml
+  - manifests/service-flagd.yaml
+  - manifests/service-frontend-proxy.yaml
+  - manifests/service-frontend.yaml
+  - manifests/service-grafana.yaml
+  - manifests/service-image-provider.yaml
+  - manifests/service-jaeger.yaml
+  - manifests/service-kafka.yaml
+  - manifests/service-llm.yaml
+  - manifests/service-load-generator.yaml
+  - manifests/service-opensearch-headless.yaml
+  - manifests/service-opensearch.yaml
+  - manifests/service-otel-collector.yaml
+  - manifests/service-payment.yaml
+  - manifests/service-postgresql.yaml
+  - manifests/service-product-catalog.yaml
+  - manifests/service-product-reviews.yaml
+  - manifests/service-prometheus.yaml
+  - manifests/service-quote.yaml
+  - manifests/service-recommendation.yaml
+  - manifests/service-shipping.yaml
+  - manifests/service-valkey-cart.yaml
+  # Workloads
+  - manifests/daemonset-otel-collector-agent.yaml
+  - manifests/deployment-accounting.yaml
+  - manifests/deployment-ad.yaml
+  - manifests/deployment-cart.yaml
+  - manifests/deployment-checkout.yaml
+  - manifests/deployment-currency.yaml
+  - manifests/deployment-email.yaml
+  - manifests/deployment-flagd.yaml
+  - manifests/deployment-fraud-detection.yaml
+  - manifests/deployment-frontend-proxy.yaml
+  - manifests/deployment-frontend.yaml
+  - manifests/deployment-grafana.yaml
+  - manifests/deployment-image-provider.yaml
+  - manifests/deployment-jaeger.yaml
+  - manifests/deployment-kafka.yaml
+  - manifests/deployment-llm.yaml
+  - manifests/deployment-load-generator.yaml
+  - manifests/deployment-payment.yaml
+  - manifests/deployment-postgresql.yaml
+  - manifests/deployment-product-catalog.yaml
+  - manifests/deployment-product-reviews.yaml
+  - manifests/deployment-prometheus.yaml
+  - manifests/deployment-quote.yaml
+  - manifests/deployment-recommendation.yaml
+  - manifests/deployment-shipping.yaml
+  - manifests/deployment-valkey-cart.yaml
+  - manifests/poddisruptionbudget-opensearch-pdb.yaml
+  - manifests/statefulset-opensearch.yaml
+  # OpenShift Routes
+  - patches/route-frontend-proxy.yaml
+  - patches/route-grafana.yaml
+  - patches/route-jaeger.yaml
+
+# Note: securityContext patches removed — using anyuid SCC instead
+# to allow community images to run with their expected UIDs
+
+patches:
+  # Increase Prometheus memory (default 400Mi causes OOM on OpenShift)
+  - target:
+      kind: Deployment
+      name: prometheus
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: prometheus
+      spec:
+        template:
+          spec:
+            containers:
+              - name: prometheus-server
+                resources:
+                  limits:
+                    memory: 800Mi

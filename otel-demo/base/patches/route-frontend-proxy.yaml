@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: frontend-proxy
+  labels:
+    app.kubernetes.io/name: frontend-proxy
+    app.kubernetes.io/part-of: opentelemetry-demo
+spec:
+  to:
+    kind: Service
+    name: frontend-proxy
+    weight: 100
+  port:
+    targetPort: tcp-service
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
