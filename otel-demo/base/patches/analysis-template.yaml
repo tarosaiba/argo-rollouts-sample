@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: http-success-rate
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: web-check
+      # Run every 30s for 2 minutes (4 measurements)
+      interval: 30s
+      count: 4
+      failureLimit: 1
+      successCondition: result.status == "200"
+      provider:
+        web:
+          url: "http://{{args.service-name}}-preview:8080/"
+          timeoutSeconds: 10
+          headers:
+            - key: User-Agent
+              value: argo-rollouts-analysis

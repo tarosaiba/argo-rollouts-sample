@@ -76,7 +76,8 @@ resources:
   - manifests/deployment-flagd.yaml
   - manifests/deployment-fraud-detection.yaml
   - manifests/deployment-frontend-proxy.yaml
-  - manifests/deployment-frontend.yaml
+  # deployment-frontend.yaml replaced by Rollout
+  - patches/rollout-frontend.yaml
   - manifests/deployment-grafana.yaml
   - manifests/deployment-image-provider.yaml
   - manifests/deployment-jaeger.yaml
@@ -94,6 +95,9 @@ resources:
   - manifests/deployment-valkey-cart.yaml
   - manifests/poddisruptionbudget-opensearch-pdb.yaml
   - manifests/statefulset-opensearch.yaml
+  # Blue/Green Rollout
+  - patches/service-frontend-preview.yaml
+  - patches/analysis-template.yaml
   # OpenShift Routes
   - patches/route-frontend-proxy.yaml
   - patches/route-grafana.yaml
