@@ -96,30 +96,51 @@ spec:
 
         kustomize edit set image "${CURRENT}=${IMAGE}"
         echo "CHANGED" > $(workspaces.shared-workspace.path)/update-status
+        echo "${CURRENT}" > $(workspaces.shared-workspace.path)/current-image
+        echo "${IMAGE}" > $(workspaces.shared-workspace.path)/new-image
 
-    # Step 3: git commit & push
+    # Step 3: git commit & push (with retry for parallel Wave pushes)
     - name: git-push
-      image: alpine/git:2.43.0
+      image: alpine:3.20
       script: |
         #!/bin/sh
         set -eu
+        apk add --no-cache git curl >/dev/null 2>&1
+        # Install kustomize for re-apply on retry
+        curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" \
+          | tar xz -C /usr/local/bin/
+
         STATUS=$(cat $(workspaces.shared-workspace.path)/update-status)
         if [ "$STATUS" = "NO_CHANGE" ]; then
           echo "No changes to commit. Skipping push."
           exit 0
         fi
-        cd $(workspaces.shared-workspace.path)/repo
+
+        CURRENT_IMAGE=$(cat $(workspaces.shared-workspace.path)/current-image)
+        NEW_IMAGE=$(cat $(workspaces.shared-workspace.path)/new-image)
+        BRANCH="$(params.manifest-repo-branch)"
+        REPO="$(workspaces.shared-workspace.path)/repo"
+        OVERLAY="${REPO}/otel-demo/overlays/dev"
+
+        cd "$REPO"
         git add -A
         git commit -m "chore(release): bump $(params.app-name) to $(params.image-tag) [skip ci]"
-        # Retry with rebase to handle parallel Wave pushes to the same branch
+
         MAX_RETRIES=5
         for i in $(seq 1 $MAX_RETRIES); do
-          if git push origin "$(params.manifest-repo-branch)"; then
+          if git push origin "$BRANCH"; then
             echo "Push succeeded (attempt $i)"
             exit 0
           fi
-          echo "Push failed (attempt $i/$MAX_RETRIES), rebasing..."
-          git pull --rebase origin "$(params.manifest-repo-branch)"
+          echo "Push failed (attempt $i/$MAX_RETRIES), pulling latest and re-applying..."
+          # Discard local commit, pull latest, re-apply kustomize change
+          git reset --hard HEAD~1
+          git pull origin "$BRANCH"
+          cd "$OVERLAY"
+          kustomize edit set image "${CURRENT_IMAGE}=${NEW_IMAGE}"
+          cd "$REPO"
+          git add -A
+          git commit -m "chore(release): bump $(params.app-name) to $(params.image-tag) [skip ci]"
         done
         echo "ERROR: Push failed after $MAX_RETRIES attempts"
         exit 1
