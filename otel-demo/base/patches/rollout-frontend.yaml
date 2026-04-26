@@ -38,6 +38,7 @@ spec:
         app.kubernetes.io/name: frontend
       annotations:
         resource.opentelemetry.io/service.namespace: otel-demo
+        demo.otel/release-note: v1.1.0-release-test
     spec:
       serviceAccountName: otel-demo
       containers:
