@@ -217,6 +217,12 @@ spec:
       script: |
         #!/bin/sh
         set -eu
+        STATUS=$(cat $(workspaces.shared-workspace.path)/update-status 2>/dev/null || echo "CHANGED")
+        if [ "$STATUS" = "NO_CHANGE" ]; then
+          echo "No image change. Skipping sync."
+          echo "SUCCESS" > $(workspaces.shared-workspace.path)/sync-status
+          exit 0
+        fi
         # Retry sync in case another Stage task is syncing the same app
         MAX_SYNC_RETRIES=12
         for i in $(seq 1 $MAX_SYNC_RETRIES); do
