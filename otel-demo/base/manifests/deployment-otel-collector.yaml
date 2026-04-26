@@ -81,7 +81,7 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: GOMEMLIMIT
-              value: "160MiB"
+              value: "400MiB"
           livenessProbe:
             httpGet:
               path: /
@@ -92,7 +92,7 @@ spec:
               port: 13133
           resources:
             limits:
-              memory: 200Mi
+              memory: 512Mi
           volumeMounts:
             - mountPath: /conf
               name: opentelemetry-collector-configmap

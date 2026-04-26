@@ -89,6 +89,8 @@ resources:
   - manifests/deployment-valkey-cart.yaml
   - manifests/poddisruptionbudget-opensearch-pdb.yaml
   - manifests/statefulset-opensearch.yaml
+  # Envoy config override (increase route timeout from 15s to 60s)
+  - patches/configmap-envoy-tmpl.yaml
   # Blue/Green Rollout
   - patches/service-frontend-preview.yaml
   - patches/analysis-template.yaml
@@ -118,3 +120,25 @@ patches:
                 resources:
                   limits:
                     memory: 2Gi
+  # Mount custom envoy config (route timeout 60s) into frontend-proxy
+  - target:
+      kind: Deployment
+      name: frontend-proxy
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend-proxy
+      spec:
+        template:
+          spec:
+            containers:
+              - name: frontend-proxy
+                volumeMounts:
+                  - name: envoy-tmpl
+                    mountPath: /home/envoy/envoy.tmpl.yaml
+                    subPath: envoy.tmpl.yaml
+            volumes:
+              - name: envoy-tmpl
+                configMap:
+                  name: frontend-proxy-envoy-tmpl
