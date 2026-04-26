@@ -10,9 +10,6 @@ spec:
           - env: dev
             namespace: otel-demo-dev
             project: otel-demo-dev
-          - env: stg
-            namespace: otel-demo-stg
-            project: otel-demo-stg
   template:
     metadata:
       name: "otel-demo-{{env}}"
