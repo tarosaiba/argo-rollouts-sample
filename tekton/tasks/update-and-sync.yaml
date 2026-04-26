@@ -49,7 +49,7 @@ spec:
         else
           REPO_URL="$(params.manifest-repo-url)"
         fi
-        git clone --depth 1 -b "$(params.manifest-repo-branch)" "$REPO_URL" repo
+        git clone -b "$(params.manifest-repo-branch)" "$REPO_URL" repo
         cd repo
         git config user.email "tekton-pipeline@otel-demo-ci.local"
         git config user.name "Tekton Pipeline"
@@ -111,7 +111,18 @@ spec:
         cd $(workspaces.shared-workspace.path)/repo
         git add -A
         git commit -m "chore(release): bump $(params.app-name) to $(params.image-tag) [skip ci]"
-        git push origin "$(params.manifest-repo-branch)"
+        # Retry with rebase to handle parallel Wave pushes to the same branch
+        MAX_RETRIES=5
+        for i in $(seq 1 $MAX_RETRIES); do
+          if git push origin "$(params.manifest-repo-branch)"; then
+            echo "Push succeeded (attempt $i)"
+            exit 0
+          fi
+          echo "Push failed (attempt $i/$MAX_RETRIES), rebasing..."
+          git pull --rebase origin "$(params.manifest-repo-branch)"
+        done
+        echo "ERROR: Push failed after $MAX_RETRIES attempts"
+        exit 1
 
     # Step 4: argocd sync & wait
     - name: argocd-sync-wait
