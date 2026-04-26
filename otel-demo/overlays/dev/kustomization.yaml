@@ -30,4 +30,4 @@ patches:
 images:
 - name: ghcr.io/open-telemetry/demo:2.2.0-frontend
   newName: ghcr.io/open-telemetry/demo
-  newTag: pre-release-frontend
+  newTag: 2.2.0-frontend
