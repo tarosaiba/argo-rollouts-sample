@@ -6,12 +6,68 @@ namespace: otel-demo-stg
 resources:
   - ../../base
 
+replicas:
+  - name: accounting
+    count: 0
+  - name: ad
+    count: 0
+  - name: cart
+    count: 0
+  - name: checkout
+    count: 0
+  - name: currency
+    count: 0
+  - name: email
+    count: 0
+  - name: flagd
+    count: 0
+  - name: fraud-detection
+    count: 0
+  - name: frontend-proxy
+    count: 0
+  - name: grafana
+    count: 0
+  - name: image-provider
+    count: 0
+  - name: jaeger
+    count: 0
+  - name: kafka
+    count: 0
+  - name: llm
+    count: 0
+  - name: load-generator
+    count: 0
+  - name: otel-collector
+    count: 0
+  - name: payment
+    count: 0
+  - name: postgresql
+    count: 0
+  - name: product-catalog
+    count: 0
+  - name: product-reviews
+    count: 0
+  - name: prometheus
+    count: 0
+  - name: quote
+    count: 0
+  - name: recommendation
+    count: 0
+  - name: shipping
+    count: 0
+  - name: valkey-cart
+    count: 0
+  - name: opensearch
+    count: 0
 patches:
-  # Set namespace for analysis FQDN (controller runs in argo-rollouts ns)
+  # Scale Rollout to 0
   - target:
       kind: Rollout
       name: frontend
     patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 0
       - op: replace
         path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
         value: otel-demo-stg
