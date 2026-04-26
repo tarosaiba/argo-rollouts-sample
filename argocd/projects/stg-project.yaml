@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: otel-demo-stg
+  namespace: openshift-gitops
+spec:
+  description: OTel Demo - Staging environment
+  sourceRepos:
+    - https://github.com/tarosaiba/argo-rollouts-sample.git
+  destinations:
+    - namespace: otel-demo-stg
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
