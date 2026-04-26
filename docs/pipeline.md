@@ -48,11 +48,13 @@ Stage 1 の 2 タスクは `runAfter` 指定なしで並列実行される。Sta
 graph TD
     S1[1. git-clone<br/>マニフェストリポジトリを clone]
     S2[2. update-image<br/>kustomize edit set image で<br/>overlay の image tag を更新]
-    S3[3. fetch-kustomize<br/>kustomize バイナリを workspace にコピー<br/>push リトライ用]
-    S4[4. git-push<br/>commit & push<br/>並列 push 時はリトライ]
-    S5[5. argocd-sync-wait<br/>ArgoCD Sync → Health 待機<br/>concurrent sync 時はリトライ]
+    S3[3. notify-start<br/>Slack に release started 通知<br/>NO_CHANGE 時はスキップ]
+    S4[4. fetch-kustomize<br/>kustomize バイナリを workspace にコピー<br/>push リトライ用]
+    S5[5. git-push<br/>commit & push<br/>並列 push 時はリトライ]
+    S6[6. argocd-sync-wait<br/>ArgoCD Sync → Health 待機<br/>concurrent sync 時はリトライ]
+    S7[7. notify-slack<br/>Slack にリリース結果を通知<br/>成功・失敗・スキップ]
 
-    S1 --> S2 --> S3 --> S4 --> S5
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
 ```
 
 **リトライ機構:**

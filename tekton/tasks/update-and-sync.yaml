@@ -117,7 +117,43 @@ spec:
         echo "${BASE_IMAGE}" > $(workspaces.shared-workspace.path)/current-image
         echo "${IMAGE}" > $(workspaces.shared-workspace.path)/new-image
 
-    # Step 3: download kustomize (needed for retry in git-push)
+    # Step 3: Slack notification (release started)
+    - name: notify-start
+      image: curlimages/curl:8.7.1
+      env:
+        - name: SLACK_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slack-bot-secret
+              key: token
+              optional: true
+        - name: SLACK_CHANNEL
+          value: $(params.slack-channel)
+      script: |
+        #!/bin/sh
+        set -eu
+        STATUS=$(cat $(workspaces.shared-workspace.path)/update-status 2>/dev/null || echo "CHANGED")
+        if [ "$STATUS" = "NO_CHANGE" ]; then
+          echo "No change detected, skipping start notification."
+          exit 0
+        fi
+
+        APP="$(params.app-name)"
+        TAG="$(params.image-tag)"
+        MSG="${APP}: ${TAG} release started"
+        COLOR="#1e90ff"
+
+        if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+          curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"channel\":\"${SLACK_CHANNEL}\",\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${MSG}\"}]}"
+        else
+          echo "SLACK_BOT_TOKEN not set, skipping notification"
+        fi
+        echo "Notification: ${MSG}"
+
+    # Step 4: download kustomize (needed for retry in git-push)
     - name: fetch-kustomize
       image: registry.k8s.io/kustomize/kustomize:v5.4.3
       script: |
@@ -127,7 +163,7 @@ spec:
         chmod +x $(workspaces.shared-workspace.path)/kustomize
         echo "kustomize copied to workspace"
 
-    # Step 4: git commit & push (with retry for parallel Stage pushes)
+    # Step 5: git commit & push (with retry for parallel Stage pushes)
     - name: git-push
       image: alpine/git:2.43.0
       script: |
@@ -169,7 +205,7 @@ spec:
         echo "ERROR: Push failed after $MAX_RETRIES attempts"
         exit 1
 
-    # Step 5: argocd sync & wait (with retry for concurrent sync operations)
+    # Step 6: argocd sync & wait (with retry for concurrent sync operations)
     - name: argocd-sync-wait
       onError: continue
       image: quay.io/argoproj/argocd:v2.12.13
@@ -197,7 +233,7 @@ spec:
         argocd app wait otel-demo-dev --health --insecure --grpc-web --timeout 600
         echo "SUCCESS" > $(workspaces.shared-workspace.path)/sync-status
 
-    # Step 6: Slack notification (runs even if sync failed via onError: continue)
+    # Step 7: Slack notification (release result, runs even if sync failed via onError: continue)
     - name: notify-slack
       image: curlimages/curl:8.7.1
       env:
