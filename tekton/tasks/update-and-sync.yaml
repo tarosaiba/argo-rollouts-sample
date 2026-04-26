@@ -86,7 +86,9 @@ spec:
         cd "$OVERLAY"
 
         # Extract base image reference for this app (used as kustomize edit key)
+        # Exclude lines where app name is a prefix of a longer name (e.g. frontend vs frontend-proxy)
         BASE_IMAGE=$(grep -r "image:.*demo:.*-${APP}" $(workspaces.shared-workspace.path)/repo/otel-demo/base/ -h \
+          | grep -v "demo:.*-${APP}-" \
           | head -1 | sed "s/.*image: *'\\{0,1\\}//; s/'\\{0,1\\} *$//" | xargs)
 
         # Check effective image: overlay images section takes precedence over base
