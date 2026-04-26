@@ -42,7 +42,7 @@ spec:
       serviceAccountName: otel-demo
       containers:
         - name: frontend
-          image: 'ghcr.io/open-telemetry/demo:broken-tag'
+          image: 'ghcr.io/open-telemetry/demo:2.2.0-frontend'
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
