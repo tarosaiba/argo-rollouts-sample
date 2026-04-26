@@ -85,7 +85,39 @@ git push origin main
 
 ArgoCD UI または CLI で以前の revision に戻す。
 
+## Tekton Pipeline による自動化（dev のみ）
+
+dev 環境では Tekton Pipeline を使い、複数コンポーネントのイメージタグ更新を
+Wave 方式で自動化できる。詳細は [docs/pipeline.md](pipeline.md) を参照。
+
+```bash
+tkn pipeline start progressive-release \
+  -p image-tag=<新バージョン> \
+  -w name=shared-workspace,volumeClaimTemplateFile=<(cat <<'EOF'
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 256Mi
+EOF
+) \
+  -w name=git-credentials,secret=git-credentials \
+  --serviceaccount pipeline-sa \
+  -n otel-demo-ci \
+  --use-param-defaults
+```
+
+Pipeline が自動で行うこと:
+1. overlay の kustomization.yaml にイメージタグを書き込み
+2. Git commit & push
+3. ArgoCD Sync & Health 待機
+4. Wave 順序制御（product-catalog + currency → cart → frontend）
+
+Pipeline 完了後、stg / prod への昇格は手動（前述の手順 3, 4）で行う。
+
 ## フロー図
+
+### 手動フロー（base 変更）
 
 ```
 [base/ 変更] → [git push] → [dev Auto Sync]
@@ -107,4 +139,18 @@ ArgoCD UI または CLI で以前の revision に戻す。
                             [Rollout Blue/Green]
                                     ↓
                           [Manual Promote] ✓
+```
+
+### Tekton Pipeline フロー（dev のみ）
+
+```
+[tkn pipeline start] → [Wave 1: product-catalog + currency (並列)]
+                              ↓ (各: kustomize edit → git push → argocd sync)
+                        [Wave 2: cart]
+                              ↓
+                        [Wave 3: frontend]
+                              ↓
+                        [Manual Promote (frontend)]
+                              ↓
+                        [dev Healthy] → [手動で stg / prod へ昇格]
 ```

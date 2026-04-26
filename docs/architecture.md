@@ -87,6 +87,42 @@
     └──────────────────┘
 ```
 
+## CI/CD Pipeline (Tekton)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     otel-demo-ci Namespace                    │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │ Pipeline: progressive-release                            │ │
+│  │                                                          │ │
+│  │  Wave 1 (並列)          Wave 2         Wave 3           │ │
+│  │  ┌──────────────┐                                        │ │
+│  │  │product-catalog│─┐  ┌──────┐      ┌──────────┐        │ │
+│  │  └──────────────┘ ├─→│ cart │──→   │ frontend │        │ │
+│  │  ┌──────────────┐ │  └──────┘      └──────────┘        │ │
+│  │  │  currency    │─┘                                      │ │
+│  │  └──────────────┘                                        │ │
+│  │                                                          │ │
+│  │  各 Task (update-and-sync):                              │ │
+│  │  git clone → kustomize edit → git push → argocd sync    │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                               │
+│  ServiceAccount: pipeline-sa                                  │
+│  Secrets: argocd-env-secret, git-credentials                 │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ argocd sync & wait
+                           ▼
+              ┌────────────────────────┐
+              │  ArgoCD: otel-demo-dev │
+              └────────────┬───────────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │   otel-demo-dev NS     │
+              └────────────────────────┘
+```
+
 ## 技術スタック
 
 | コンポーネント | 技術 | バージョン |
@@ -94,6 +130,7 @@
 | プラットフォーム | OpenShift | 4.18.21 |
 | GitOps | OpenShift GitOps (ArgoCD) | 1.14.4 |
 | Progressive Delivery | Argo Rollouts | via GitOps Operator |
+| CI Pipeline | OpenShift Pipelines (Tekton) | 1.16.3 |
 | マニフェスト管理 | Kustomize | v5.7.1 (oc 内蔵) |
 | Chart ソース | OpenTelemetry Demo Helm | 0.40.7 |
 | アプリケーション | OpenTelemetry Demo | 2.2.0 |

@@ -138,6 +138,113 @@ prod で問題が発見され、前のバージョンにロールバックする
 
 ---
 
+## シナリオ 4: Tekton Pipeline による段階的リリース
+
+### ストーリー
+Tekton Pipeline を使い、Wave 方式で依存関係を考慮した段階的リリースを実行する。
+product-catalog + currency (Wave 1, 並列) → cart (Wave 2) → frontend (Wave 3) の順に、
+イメージタグ更新 → Git push → ArgoCD Sync → Healthy 待機を自動化する。
+
+### 前提条件
+- Phase 8a のセットアップが完了していること（詳細は [docs/pipeline.md](pipeline.md) 参照）
+- dev 環境が Synced & Healthy であること
+
+### 手順
+
+1. **現在のイメージタグを確認**
+   ```bash
+   oc get deployment product-catalog currency cart -n otel-demo-dev \
+     -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
+   oc get rollout frontend -n otel-demo-dev \
+     -o jsonpath='{.spec.template.spec.containers[0].image}'
+   ```
+
+2. **Pipeline 実行**
+   ```bash
+   tkn pipeline start progressive-release \
+     -p image-tag=<新バージョン> \
+     -w name=shared-workspace,volumeClaimTemplateFile=<(cat <<'EOF'
+   spec:
+     accessModes: ["ReadWriteOnce"]
+     resources:
+       requests:
+         storage: 256Mi
+   EOF
+   ) \
+     -w name=git-credentials,secret=git-credentials \
+     --serviceaccount pipeline-sa \
+     -n otel-demo-ci \
+     --use-param-defaults
+   ```
+
+3. **Wave 実行状況の追跡**
+   ```bash
+   # ログをリアルタイムで追跡
+   tkn pipelinerun logs <pipelinerun-name> -f -n otel-demo-ci
+
+   # TaskRun ごとの状態確認
+   oc get taskrun -n otel-demo-ci \
+     -l tekton.dev/pipelineRun=<pipelinerun-name> \
+     -o custom-columns='NAME:.metadata.name,STATUS:.status.conditions[0].reason,START:.status.startTime' \
+     --sort-by=.status.startTime
+   ```
+
+4. **frontend の Rollout Promote**
+
+   frontend は Blue/Green + Manual Promote のため、Pipeline の argocd wait がタイムアウトする前に promote が必要:
+   ```bash
+   # AnalysisRun の結果を確認
+   oc get analysisrun -n otel-demo-dev --sort-by=.metadata.creationTimestamp | tail -1
+
+   # promote 実行
+   oc argo rollouts promote frontend -n otel-demo-dev
+   ```
+
+5. **完了確認**
+   ```bash
+   # Pipeline が Succeeded であること
+   tkn pipelinerun describe <pipelinerun-name> -n otel-demo-ci
+
+   # 全コンポーネントが新タグで Running
+   oc get deployment product-catalog currency cart -n otel-demo-dev \
+     -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
+   ```
+
+### 確認ポイント
+- Wave 1 の 2 タスクが同時刻に開始されていること（並列実行）
+- Wave 2 が Wave 1 完了後に開始されること
+- Wave 3 が Wave 2 完了後に開始されること
+- Pipeline 完了後、dev の全対象コンポーネントが新タグで Healthy
+
+### 異常系の確認
+
+存在しないタグで Pipeline を実行し、失敗動作を確認する:
+
+```bash
+tkn pipeline start progressive-release \
+  -p image-tag=does-not-exist \
+  -w name=shared-workspace,volumeClaimTemplateFile=<(cat <<'EOF'
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 256Mi
+EOF
+) \
+  -w name=git-credentials,secret=git-credentials \
+  --serviceaccount pipeline-sa \
+  -n otel-demo-ci \
+  --use-param-defaults
+```
+
+確認ポイント:
+- Wave 1 の TaskRun が Failed になること（argocd wait タイムアウト）
+- Wave 2/3 が Skipped になること
+- dev の既存 Pod は旧イメージのまま Running を維持すること
+- Pipeline 失敗後、dev overlay の `images` セクションを修正して復旧する（[トラブルシューティング](pipeline.md#pipeline-失敗後の-dev-環境復旧) 参照）
+
+---
+
 ## 環境 URL
 
 | 環境 | Frontend | Grafana | Jaeger |
