@@ -33,4 +33,4 @@ images:
   newTag: 2.2.0-currency
 - name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
   newName: ghcr.io/open-telemetry/demo
-  newTag: pre-release-product-catalog
+  newTag: 2.2.0-product-catalog
