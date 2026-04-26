@@ -28,9 +28,7 @@ patches:
     name: frontend
 
 images:
-- name: ghcr.io/open-telemetry/demo:2.2.0-currency
+- name: ghcr.io/open-telemetry/demo:2.2.0-cart
   newName: ghcr.io/open-telemetry/demo
-  newTag: 2.2.0-currency
-- name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
-  newName: ghcr.io/open-telemetry/demo
-  newTag: 2.2.0-product-catalog
+  newTag: pre-release-cart
+
