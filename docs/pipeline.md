@@ -173,14 +173,24 @@ oc annotate secret git-credentials -n otel-demo-ci \
   "tekton.dev/git-0=https://github.com"
 ```
 
-### 4.5 ServiceAccount に Secret を紐付け
+### 4.5 Slack Bot Token の Secret 作成（通知用、任意）
+
+Pipeline の各コンポーネントリリース結果を Slack に通知する場合、Bot Token の Secret を作成する。
+Secret が存在しない場合、通知はスキップされる（Pipeline の動作には影響しない）。
+
+```bash
+oc create secret generic slack-bot-secret -n otel-demo-ci \
+  --from-literal=token=<Slack Bot Token (xoxb-...)>
+```
+
+### 4.6 ServiceAccount に Secret を紐付け
 
 ```bash
 oc patch serviceaccount pipeline-sa -n otel-demo-ci \
   --type merge -p '{"secrets":[{"name":"git-credentials"},{"name":"argocd-env-secret"}]}'
 ```
 
-### 4.6 Tekton Task のインストール
+### 4.7 Tekton Task のインストール
 
 argocd-task-sync-and-wait（参考用、本 Pipeline では Task 内に sync ロジックを内蔵）:
 

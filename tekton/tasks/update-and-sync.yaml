@@ -21,6 +21,10 @@ spec:
     - name: manifest-repo-branch
       type: string
       default: main
+    - name: slack-channel
+      type: string
+      default: "#notification-test"
+      description: Slack channel for release notifications
   workspaces:
     - name: shared-workspace
     - name: git-credentials
@@ -164,6 +168,7 @@ spec:
         exit 1
 
     # Step 5: argocd sync & wait (with retry for concurrent sync operations)
+    #         Sends Slack notification on success or failure via EXIT trap.
     - name: argocd-sync-wait
       image: quay.io/argoproj/argocd:v2.12.13
       envFrom:
@@ -171,9 +176,46 @@ spec:
             name: argocd-env-configmap
         - secretRef:
             name: argocd-env-secret
+      env:
+        - name: SLACK_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slack-bot-secret
+              key: token
+              optional: true
+        - name: SLACK_CHANNEL
+          value: $(params.slack-channel)
       script: |
         #!/bin/sh
+        RESULT="FAILURE"
+
+        notify() {
+          APP="$(params.app-name)"
+          TAG="$(params.image-tag)"
+          UPDATE_STATUS=$(cat $(workspaces.shared-workspace.path)/update-status 2>/dev/null || echo "CHANGED")
+
+          if [ "$UPDATE_STATUS" = "NO_CHANGE" ]; then
+            MSG="${APP}: tag ${TAG} is already applied (skipped)"
+            COLOR="#808080"
+          elif [ "$RESULT" = "SUCCESS" ]; then
+            MSG="${APP}: ${TAG} released successfully"
+            COLOR="#36a64f"
+          else
+            MSG="${APP}: ${TAG} release failed"
+            COLOR="#dc3545"
+          fi
+
+          if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+            curl -s -X POST https://slack.com/api/chat.postMessage \
+              -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"channel\":\"${SLACK_CHANNEL}\",\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${MSG}\"}]}" || true
+          fi
+        }
+
+        trap notify EXIT
         set -eu
+
         # Retry sync in case another Stage task is syncing the same app
         MAX_SYNC_RETRIES=12
         for i in $(seq 1 $MAX_SYNC_RETRIES); do
@@ -188,3 +230,4 @@ spec:
           sleep 10
         done
         argocd app wait otel-demo-dev --health --insecure --grpc-web --timeout 600
+        RESULT="SUCCESS"
