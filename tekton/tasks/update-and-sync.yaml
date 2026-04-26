@@ -99,23 +99,29 @@ spec:
         echo "${CURRENT}" > $(workspaces.shared-workspace.path)/current-image
         echo "${IMAGE}" > $(workspaces.shared-workspace.path)/new-image
 
-    # Step 3: git commit & push (with retry for parallel Wave pushes)
-    - name: git-push
-      image: alpine:3.20
+    # Step 3: download kustomize (needed for retry in git-push)
+    - name: fetch-kustomize
+      image: registry.k8s.io/kustomize/kustomize:v5.4.3
       script: |
         #!/bin/sh
         set -eu
-        apk add --no-cache git curl >/dev/null 2>&1
-        # Install kustomize for re-apply on retry
-        curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" \
-          | tar xz -C /usr/local/bin/
+        cp /app/kustomize $(workspaces.shared-workspace.path)/kustomize
+        chmod +x $(workspaces.shared-workspace.path)/kustomize
+        echo "kustomize copied to workspace"
 
+    # Step 4: git commit & push (with retry for parallel Wave pushes)
+    - name: git-push
+      image: alpine/git:2.43.0
+      script: |
+        #!/bin/sh
+        set -eu
         STATUS=$(cat $(workspaces.shared-workspace.path)/update-status)
         if [ "$STATUS" = "NO_CHANGE" ]; then
           echo "No changes to commit. Skipping push."
           exit 0
         fi
 
+        KUSTOMIZE="$(workspaces.shared-workspace.path)/kustomize"
         CURRENT_IMAGE=$(cat $(workspaces.shared-workspace.path)/current-image)
         NEW_IMAGE=$(cat $(workspaces.shared-workspace.path)/new-image)
         BRANCH="$(params.manifest-repo-branch)"
@@ -137,7 +143,7 @@ spec:
           git reset --hard HEAD~1
           git pull origin "$BRANCH"
           cd "$OVERLAY"
-          kustomize edit set image "${CURRENT_IMAGE}=${NEW_IMAGE}"
+          "$KUSTOMIZE" edit set image "${CURRENT_IMAGE}=${NEW_IMAGE}"
           cd "$REPO"
           git add -A
           git commit -m "chore(release): bump $(params.app-name) to $(params.image-tag) [skip ci]"
@@ -145,7 +151,7 @@ spec:
         echo "ERROR: Push failed after $MAX_RETRIES attempts"
         exit 1
 
-    # Step 4: argocd sync & wait
+    # Step 5: argocd sync & wait (with retry for concurrent sync operations)
     - name: argocd-sync-wait
       image: quay.io/argoproj/argocd:v2.12.13
       envFrom:
@@ -156,5 +162,17 @@ spec:
       script: |
         #!/bin/sh
         set -eu
-        argocd app sync otel-demo-dev --insecure --grpc-web --timeout 600
+        # Retry sync in case another Wave task is syncing the same app
+        MAX_SYNC_RETRIES=12
+        for i in $(seq 1 $MAX_SYNC_RETRIES); do
+          if argocd app sync otel-demo-dev --insecure --grpc-web --timeout 600; then
+            break
+          fi
+          if [ "$i" = "$MAX_SYNC_RETRIES" ]; then
+            echo "ERROR: Sync failed after $MAX_SYNC_RETRIES attempts"
+            exit 1
+          fi
+          echo "Sync attempt $i failed, retrying in 10s..."
+          sleep 10
+        done
         argocd app wait otel-demo-dev --health --insecure --grpc-web --timeout 600
