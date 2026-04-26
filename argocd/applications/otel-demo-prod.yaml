@@ -3,6 +3,10 @@ kind: Application
 metadata:
   name: otel-demo-prod
   namespace: openshift-gitops
+  annotations:
+    notifications.argoproj.io/subscribe.on-deployed.slack: "#notification-test"
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: "#notification-test"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: "#notification-test"
 spec:
   project: otel-demo-prod
   source:
