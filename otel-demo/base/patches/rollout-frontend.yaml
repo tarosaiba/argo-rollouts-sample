@@ -27,6 +27,8 @@ spec:
         args:
           - name: service-name
             value: frontend
+          - name: namespace
+            value: otel-demo
   template:
     metadata:
       labels:

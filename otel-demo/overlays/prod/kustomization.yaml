@@ -5,3 +5,13 @@ namespace: otel-demo-prod
 
 resources:
   - ../../base
+
+patches:
+  # Set namespace for analysis FQDN (controller runs in argo-rollouts ns)
+  - target:
+      kind: Rollout
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
+        value: otel-demo-prod

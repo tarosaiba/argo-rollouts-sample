@@ -18,3 +18,11 @@ patches:
         name: load-generator
       spec:
         replicas: 1
+  # Set namespace for analysis FQDN (controller runs in argo-rollouts ns)
+  - target:
+      kind: Rollout
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
+        value: otel-demo-dev

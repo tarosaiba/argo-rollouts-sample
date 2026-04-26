@@ -5,6 +5,7 @@ metadata:
 spec:
   args:
     - name: service-name
+    - name: namespace
   metrics:
     - name: web-check
       # Run every 30s for 2 minutes (4 measurements)
@@ -14,7 +15,7 @@ spec:
       successCondition: result.status == "200"
       provider:
         web:
-          url: "http://{{args.service-name}}-preview:8080/"
+          url: "http://{{args.service-name}}-preview.{{args.namespace}}.svc:8080/"
           timeoutSeconds: 10
           headers:
             - key: User-Agent
