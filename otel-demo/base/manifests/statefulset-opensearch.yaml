@@ -35,6 +35,7 @@ spec:
       annotations:
         configchecksum: 96b7e2c925c99b4e4de299cafc224a967a9714b93b4833d2d3b31613aaf88cc
     spec:
+      serviceAccountName: otel-demo
       securityContext:
         fsGroup: 1000
         runAsUser: 1000
