@@ -32,4 +32,4 @@ images:
   newTag: does-not-exist-currency
 - name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
   newName: ghcr.io/open-telemetry/demo
-  newTag: 2.2.0-product-catalog
+  newTag: does-not-exist-product-catalog
