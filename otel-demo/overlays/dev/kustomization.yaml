@@ -4,25 +4,29 @@ kind: Kustomization
 namespace: otel-demo-dev
 
 resources:
-  - ../../base
+- ../../base
 
-patches:
   # dev: lower replicas, debug log level for load-generator
-  - target:
-      kind: Deployment
-      name: load-generator
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: load-generator
-      spec:
-        replicas: 1
   # Set namespace for analysis FQDN (controller runs in argo-rollouts ns)
-  - target:
-      kind: Rollout
-      name: frontend
-    patch: |-
-      - op: replace
-        path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
-        value: otel-demo-dev
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: load-generator
+    spec:
+      replicas: 1
+  target:
+    kind: Deployment
+    name: load-generator
+- patch: |-
+    - op: replace
+      path: /spec/strategy/blueGreen/prePromotionAnalysis/args/1/value
+      value: otel-demo-dev
+  target:
+    kind: Rollout
+    name: frontend
+images:
+- name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
+  newName: ghcr.io/open-telemetry/demo
+  newTag: 2.1.3-product-catalog
