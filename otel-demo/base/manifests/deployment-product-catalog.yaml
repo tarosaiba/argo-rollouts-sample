@@ -58,7 +58,7 @@ spec:
             - name: FLAGD_PORT
               value: "8013"
             - name: GOMEMLIMIT
-              value: 16MiB
+              value: 200MiB
             - name: DB_CONNECTION_STRING
               value: postgres://otelu:otelp@postgresql/otel?sslmode=disable
             - name: OTEL_SEMCONV_STABILITY_OPT_IN
@@ -67,6 +67,6 @@ spec:
               value: http://$(OTEL_COLLECTOR_NAME):4317
           resources:
             limits:
-              memory: 20Mi
+              memory: 300Mi
           volumeMounts:
       volumes:
