@@ -121,7 +121,7 @@ spec:
         chmod +x $(workspaces.shared-workspace.path)/kustomize
         echo "kustomize copied to workspace"
 
-    # Step 4: git commit & push (with retry for parallel Wave pushes)
+    # Step 4: git commit & push (with retry for parallel Stage pushes)
     - name: git-push
       image: alpine/git:2.43.0
       script: |
@@ -174,7 +174,7 @@ spec:
       script: |
         #!/bin/sh
         set -eu
-        # Retry sync in case another Wave task is syncing the same app
+        # Retry sync in case another Stage task is syncing the same app
         MAX_SYNC_RETRIES=12
         for i in $(seq 1 $MAX_SYNC_RETRIES); do
           if argocd app sync otel-demo-dev --insecure --grpc-web --timeout 600; then

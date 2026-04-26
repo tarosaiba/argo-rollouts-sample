@@ -192,8 +192,8 @@ prod で問題が発見され、前のバージョンにロールバックする
 ## シナリオ 4: Tekton Pipeline による段階的リリース
 
 ### ストーリー
-Tekton Pipeline を使い、Wave 方式で依存関係を考慮した段階的リリースを実行する。
-product-catalog + currency (Wave 1, 並列) → cart (Wave 2) → frontend (Wave 3) の順に、
+Tekton Pipeline を使い、Stage 方式で依存関係を考慮した段階的リリースを実行する。
+product-catalog + currency (Stage 1, 並列) → cart (Stage 2) → frontend (Stage 3) の順に、
 イメージタグ更新 → Git push → ArgoCD Sync → Healthy 待機を自動化する。
 
 ### 前提条件
@@ -228,7 +228,7 @@ product-catalog + currency (Wave 1, 並列) → cart (Wave 2) → frontend (Wave
      --use-param-defaults
    ```
 
-3. **Wave 実行状況の追跡**
+3. **Stage 実行状況の追跡**
    ```bash
    # ログをリアルタイムで追跡
    tkn pipelinerun logs <pipelinerun-name> -f -n otel-demo-ci
@@ -264,9 +264,9 @@ product-catalog + currency (Wave 1, 並列) → cart (Wave 2) → frontend (Wave
    ```
 
 ### 確認ポイント
-- Wave 1 の 2 タスクが同時刻に開始されていること（並列実行）
-- Wave 2 が Wave 1 完了後に開始されること
-- Wave 3 が Wave 2 完了後に開始されること
+- Stage 1 の 2 タスクが同時刻に開始されていること（並列実行）
+- Stage 2 が Stage 1 完了後に開始されること
+- Stage 3 が Stage 2 完了後に開始されること
 - Pipeline 完了後、dev の全対象コンポーネントが新タグで Healthy
 
 ### 異常系の確認
@@ -291,8 +291,8 @@ EOF
 ```
 
 確認ポイント:
-- Wave 1 の TaskRun が Failed になること（argocd wait タイムアウト）
-- Wave 2/3 が Skipped になること
+- Stage 1 の TaskRun が Failed になること（argocd wait タイムアウト）
+- Stage 2/3 が Skipped になること
 - dev の既存 Pod は旧イメージのまま Running を維持すること
 - Pipeline 失敗後、dev overlay の `images` セクションを修正して復旧する（[トラブルシューティング](pipeline.md#pipeline-失敗後の-dev-環境復旧) 参照）
 

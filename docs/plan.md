@@ -21,7 +21,7 @@ CD の実装にフォーカスし、Secret 管理や Policy(OPA / Kyverno など
 | 作業スタイル | Claude Code が `oc` で直接クラスタ操作 |
 | リポジトリ | ユーザー個人の単一リポジトリ |
 | CI(軽量 Tekton) | OpenShift Pipelines による image tag 更新 + ArgoCD Sync 自動化(アプリ src ビルドは行わない) |
-| リリース戦略 | 依存関係を踏まえた段階的リリース(Wave 方式) |
+| リリース戦略 | 依存関係を踏まえた段階的リリース(Stage 方式) |
 | スコープ外 | Secret 管理、Policy、アプリコード(OTel Demo 公式を利用) |
 
 ## 3. 環境別 Sync / Rollout ポリシー
@@ -54,7 +54,7 @@ otel-gitops-demo/
 │   ├── tasks/
 │   │   └── update-and-sync.yaml      # image tag 更新 + ArgoCD Sync Task
 │   ├── pipelines/
-│   │   └── progressive-release.yaml  # Wave 方式の段階的リリース Pipeline
+│   │   └── progressive-release.yaml  # Stage 方式の段階的リリース Pipeline
 │   └── pipelineruns/
 │       └── progressive-release-run.yaml.tmpl
 ├── scripts/
@@ -167,23 +167,23 @@ OpenShift Pipelines(Tekton)を用いて以下を自動化する:
 - 公式イメージタグの更新を Git にコミット
 - ArgoCD Application の Sync をトリガー
 - Rollout の Healthy 待機
-- 依存関係を踏まえた Wave 順序での段階的リリース
+- 依存関係を踏まえた Stage 順序での段階的リリース
 
 アプリの src ビルドは行わず、公式イメージタグの差し替えで新バージョン
 リリースを擬似する。
 
-#### 8.1 リリース戦略(Wave 構成)
+#### 8.1 リリース戦略(Stage 構成)
 
 OTel Demo の依存関係を踏まえ、下流(被依存側)→ 上流(利用側)の順に
 リリースする。
 
-| Wave | コンポーネント | 並列性 | 依存先 |
-|------|----------------|--------|--------|
-| Wave 1 | product-catalog, currency | 並列 | (なし、もしくは DB のみ) |
-| Wave 2 | cart | 単独 | Wave 1 |
-| Wave 3 | frontend | 単独 | Wave 1, 2 |
+| Stage | コンポーネント | 並列性 | 依存先 |
+|-------|----------------|--------|--------|
+| Stage 1 | product-catalog, currency | 並列 | (なし、もしくは DB のみ) |
+| Stage 2 | cart | 単独 | Stage 1 |
+| Stage 3 | frontend | 単独 | Stage 1, 2 |
 
-各 Wave は前 Wave の Rollout が Healthy になってから次に進む。
+各 Stage は前 Stage の Rollout が Healthy になってから次に進む。
 失敗した場合は Pipeline を停止し、人間の判断を待つ
 (Rollout は自動 abort)。
 
@@ -196,9 +196,9 @@ Pipeline 名: progressive-release
 - target-env (default: dev)
 
 Tasks:
-- Wave 1: release-product-catalog, release-currency(並列、runAfter なし)
-- Wave 2: release-cart(runAfter: [Wave 1 の全 Task])
-- Wave 3: release-frontend(runAfter: [Wave 2])
+- Stage 1: release-product-catalog, release-currency(並列、runAfter なし)
+- Stage 2: release-cart(runAfter: [Stage 1 の全 Task])
+- Stage 3: release-frontend(runAfter: [Stage 2])
 
 すべて update-and-sync Task を taskRef で呼び、対象アプリ名を param で渡す。
 
@@ -236,8 +236,8 @@ update-and-sync Task の Step:
 - [x] tekton/pipelineruns/progressive-release-run.yaml.tmpl 作成
 - [x] oc apply で Task / Pipeline 投入
 - [x] tkn pipeline start で end-to-end 実行
-- [x] 正常系動作確認(Wave 並列性、Rollout 起動、全 Wave 成功)
-- [x] 異常系動作確認(存在しないタグで Wave 1 失敗、Wave 2/3 未実行)
+- [x] 正常系動作確認(Stage 並列性、Rollout 起動、全 Stage 成功)
+- [x] 異常系動作確認(存在しないタグで Stage 1 失敗、Stage 2/3 未実行)
 
 ##### Phase 8c: ドキュメント整備
 
@@ -247,7 +247,7 @@ update-and-sync Task の Step:
 
 #### 8.5 Phase 8 完了の Definition of Done
 
-- [x] tkn pipeline start progressive-release -p image-tag=<新タグ> で全 Wave 成功
+- [x] tkn pipeline start progressive-release -p image-tag=<新タグ> で全 Stage 成功
 - [x] dev 環境の各 Rollout が新タグで Healthy
 - [x] 失敗ケースで Pipeline が適切に停止
 - [x] docs/pipeline.md で第三者がセットアップ → 実行できる

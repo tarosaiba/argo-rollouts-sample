@@ -10,7 +10,7 @@ OpenShift GitOps (ArgoCD) と OpenTelemetry Demo を題材にした Continuous D
 - **Progressive Delivery**: Argo Rollouts による Blue/Green デプロイ
 - **Analysis**: HTTP Web チェックによる自動判定
 - **Promote**: 全環境 Manual Promote
-- **CI Pipeline**: Tekton (OpenShift Pipelines) による Wave 方式段階的リリース
+- **CI Pipeline**: Tekton (OpenShift Pipelines) による Stage 方式段階的リリース
 
 ## ディレクトリ構成
 
