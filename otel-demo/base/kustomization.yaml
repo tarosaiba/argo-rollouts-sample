@@ -29,13 +29,7 @@ resources:
   - manifests/configmap-postgresql-init.yaml
   - manifests/configmap-prometheus.yaml
   - manifests/configmap-user-config.yaml
-  # RBAC
-  - manifests/clusterrole-grafana-clusterrole.yaml
-  - manifests/clusterrole-otel-collector.yaml
-  - manifests/clusterrole-prometheus.yaml
-  - manifests/clusterrolebinding-grafana-clusterrolebinding.yaml
-  - manifests/clusterrolebinding-otel-collector.yaml
-  - manifests/clusterrolebinding-prometheus.yaml
+  # RBAC (cluster-scoped roles/bindings moved to bootstrap/cluster-rbac.yaml)
   - manifests/role-grafana.yaml
   - manifests/rolebinding-grafana.yaml
   # Services

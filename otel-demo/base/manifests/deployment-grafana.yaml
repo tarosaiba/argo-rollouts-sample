@@ -77,8 +77,6 @@ spec:
             capabilities:
               drop:
               - ALL
-            seccompProfile:
-              type: RuntimeDefault
           volumeMounts:
             - name: sc-alerts-volume
               mountPath: "/etc/grafana/provisioning/alerting"
@@ -117,8 +115,6 @@ spec:
             capabilities:
               drop:
               - ALL
-            seccompProfile:
-              type: RuntimeDefault
           volumeMounts:
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
@@ -157,8 +153,6 @@ spec:
             capabilities:
               drop:
               - ALL
-            seccompProfile:
-              type: RuntimeDefault
           volumeMounts:
             - name: sc-datasources-volume
               mountPath: "/etc/grafana/provisioning/datasources"
@@ -170,8 +164,6 @@ spec:
             capabilities:
               drop:
               - ALL
-            seccompProfile:
-              type: RuntimeDefault
           volumeMounts:
             - name: config
               mountPath: "/etc/grafana/grafana.ini"

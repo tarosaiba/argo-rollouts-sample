@@ -10,13 +10,7 @@ spec:
   destinations:
     - namespace: otel-demo-dev
       server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
+  clusterResourceWhitelist: []
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
