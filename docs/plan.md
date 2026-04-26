@@ -241,16 +241,16 @@ update-and-sync Task の Step:
 
 ##### Phase 8c: ドキュメント整備
 
-- [ ] docs/pipeline.md 作成
+- [x] docs/pipeline.md 作成
   - 概要、構成図(Mermaid)、前提条件、セットアップ手順、
     実行手順、トラブルシューティング、制約
 
 #### 8.5 Phase 8 完了の Definition of Done
 
-- [ ] tkn pipeline start progressive-release -p image-tag=<新タグ> で全 Wave 成功
-- [ ] dev 環境の各 Rollout が新タグで Healthy
-- [ ] 失敗ケースで Pipeline が適切に停止
-- [ ] docs/pipeline.md で第三者がセットアップ → 実行できる
+- [x] tkn pipeline start progressive-release -p image-tag=<新タグ> で全 Wave 成功
+- [x] dev 環境の各 Rollout が新タグで Healthy
+- [x] 失敗ケースで Pipeline が適切に停止
+- [x] docs/pipeline.md で第三者がセットアップ → 実行できる
 
 #### 8.6 スコープ外(Phase 8 ではやらない)
 
