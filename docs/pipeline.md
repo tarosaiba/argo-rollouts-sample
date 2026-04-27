@@ -217,7 +217,8 @@ tkn pipeline start progressive-release \
   -p image-tag=<新バージョン> \
   -w name=shared-workspace,volumeClaimTemplateFile=<(cat <<'EOF'
 spec:
-  accessModes: ["ReadWriteOnce"]
+  accessModes: ["ReadWriteMany"]
+  storageClassName: ocs-storagecluster-cephfs
   resources:
     requests:
       storage: 256Mi

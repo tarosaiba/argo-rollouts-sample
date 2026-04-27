@@ -19,7 +19,8 @@ spec:
       volumeClaimTemplate:
         spec:
           accessModes:
-            - ReadWriteOnce
+            - ReadWriteMany
+          storageClassName: ocs-storagecluster-cephfs
           resources:
             requests:
               storage: 256Mi
