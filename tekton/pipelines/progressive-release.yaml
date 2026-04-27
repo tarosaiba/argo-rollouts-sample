@@ -14,12 +14,56 @@ spec:
     - name: image-tag
       type: string
       description: New image tag to deploy (e.g. 2.3.0)
+    - name: slack-channel
+      type: string
+      default: "#notification-test"
+      description: Slack channel for release notifications
   workspaces:
     - name: shared-workspace
     - name: git-credentials
   tasks:
-    # Stage 1 — parallel
+    # Pipeline start notification
+    - name: notify-pipeline-start
+      params:
+        - name: image-tag
+          value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
+      taskSpec:
+        params:
+          - name: image-tag
+          - name: slack-channel
+        steps:
+          - name: notify
+            image: curlimages/curl:8.7.1
+            env:
+              - name: SLACK_BOT_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: slack-bot-secret
+                    key: token
+                    optional: true
+            script: |
+              #!/bin/sh
+              set -eu
+              TAG="$(params.image-tag)"
+              CHANNEL="$(params.slack-channel)"
+              MSG="progressive-release ${TAG} started (product-catalog, currency -> cart -> frontend)"
+              COLOR="#1e90ff"
+
+              if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+                curl -s -X POST https://slack.com/api/chat.postMessage \
+                  -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"channel\":\"${CHANNEL}\",\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${MSG}\"}]}"
+              else
+                echo "SLACK_BOT_TOKEN not set, skipping notification"
+              fi
+              echo "Notification: ${MSG}"
+    # Stage 1 — parallel (after start notification)
     - name: release-product-catalog
+      runAfter:
+        - notify-pipeline-start
       taskRef:
         name: update-and-sync
       params:
@@ -27,6 +71,8 @@ spec:
           value: product-catalog
         - name: image-tag
           value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
       workspaces:
         - name: shared-workspace
           workspace: shared-workspace
@@ -34,6 +80,8 @@ spec:
         - name: git-credentials
           workspace: git-credentials
     - name: release-currency
+      runAfter:
+        - notify-pipeline-start
       taskRef:
         name: update-and-sync
       params:
@@ -41,6 +89,8 @@ spec:
           value: currency
         - name: image-tag
           value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
       workspaces:
         - name: shared-workspace
           workspace: shared-workspace
@@ -59,6 +109,8 @@ spec:
           value: cart
         - name: image-tag
           value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
       workspaces:
         - name: shared-workspace
           workspace: shared-workspace
@@ -76,9 +128,60 @@ spec:
           value: frontend
         - name: image-tag
           value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
       workspaces:
         - name: shared-workspace
           workspace: shared-workspace
           subPath: frontend
         - name: git-credentials
           workspace: git-credentials
+  # Pipeline completion notification (always runs)
+  finally:
+    - name: notify-pipeline-result
+      params:
+        - name: image-tag
+          value: $(params.image-tag)
+        - name: slack-channel
+          value: $(params.slack-channel)
+        - name: pipeline-status
+          value: $(tasks.status)
+      taskSpec:
+        params:
+          - name: image-tag
+          - name: slack-channel
+          - name: pipeline-status
+        steps:
+          - name: notify
+            image: curlimages/curl:8.7.1
+            env:
+              - name: SLACK_BOT_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: slack-bot-secret
+                    key: token
+                    optional: true
+            script: |
+              #!/bin/sh
+              set -u
+              TAG="$(params.image-tag)"
+              STATUS="$(params.pipeline-status)"
+              CHANNEL="$(params.slack-channel)"
+
+              if [ "$STATUS" = "Succeeded" ]; then
+                MSG="progressive-release ${TAG} completed - all stages succeeded"
+                COLOR="#36a64f"
+              else
+                MSG="progressive-release ${TAG} failed (status: ${STATUS})"
+                COLOR="#dc3545"
+              fi
+
+              if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
+                curl -s -X POST https://slack.com/api/chat.postMessage \
+                  -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"channel\":\"${CHANNEL}\",\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${MSG}\"}]}"
+              else
+                echo "SLACK_BOT_TOKEN not set, skipping notification"
+              fi
+              echo "Notification: ${MSG}"
