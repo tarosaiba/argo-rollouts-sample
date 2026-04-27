@@ -26,14 +26,3 @@ patches:
   target:
     kind: Rollout
     name: frontend
-
-images:
-- name: ghcr.io/open-telemetry/demo:2.2.0-cart
-  newName: ghcr.io/open-telemetry/demo
-  newTag: 9.9.9-cart
-- name: ghcr.io/open-telemetry/demo:2.2.0-currency
-  newName: ghcr.io/open-telemetry/demo
-  newTag: 9.9.9-currency
-- name: ghcr.io/open-telemetry/demo:2.2.0-product-catalog
-  newName: ghcr.io/open-telemetry/demo
-  newTag: 9.9.9-product-catalog
